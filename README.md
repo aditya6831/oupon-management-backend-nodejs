@@ -53,9 +53,6 @@ Copy code
   }
 }
  POST /apply-coupon
-Increments usage of a coupon.
 
 
 
-## Author
-Aditya Renguntwar
