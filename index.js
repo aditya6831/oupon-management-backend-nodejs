@@ -1,19 +1,17 @@
-// index.js
 const express = require('express');
 const dayjs = require('dayjs');
 
 const app = express();
 app.use(express.json());
 
-// In-memory stores
-const coupons = []; // stores coupon objects
-let usageCounts = {}; // usageCounts[userId] = { code: count }
+const coupons = []; 
+let usageCounts = {}; 
 const seedUsers = [
-  // demo seed user (assignment requirement)
+
   { email: 'hire-me@anshumat.org', password: 'HireMe@2025!', userId: 'demo-user-1', userTier: 'NEW', country: 'IN', lifetimeSpend: 0, ordersPlaced: 0 }
 ];
 
-// Utility: check date range (inclusive)
+
 function isWithinDates(startDate, endDate) {
   const now = dayjs();
   const start = dayjs(startDate);
@@ -21,13 +19,13 @@ function isWithinDates(startDate, endDate) {
   return now.isAfter(start.subtract(1, 'day')) && now.isBefore(end.add(1, 'day'));
 }
 
-// Utility: compute cart value
+
 function computeCartValue(cart) {
   if (!cart || !Array.isArray(cart.items)) return 0;
   return cart.items.reduce((s, it) => s + (Number(it.unitPrice) || 0) * (Number(it.quantity) || 0), 0);
 }
 
-// Validate coupon schema (basic)
+
 function validateCoupon(c) {
   if (!c.code) return 'code required';
   if (!c.discountType || !['FLAT', 'PERCENT'].includes(c.discountType)) return 'discountType must be FLAT or PERCENT';
@@ -42,13 +40,13 @@ app.post('/coupons', (req, res) => {
   const err = validateCoupon(coupon);
   if (err) return res.status(400).json({ error: err });
 
-  // uniqueness: reject if code exists
+
   const exists = coupons.find(c => c.code === coupon.code);
   if (exists) {
     return res.status(400).json({ error: 'Coupon code already exists' });
   }
 
-  // normalize numeric fields
+
   coupon.discountValue = Number(coupon.discountValue);
   if (coupon.maxDiscountAmount) coupon.maxDiscountAmount = Number(coupon.maxDiscountAmount);
 
@@ -56,7 +54,7 @@ app.post('/coupons', (req, res) => {
   return res.status(201).json({ success: true, coupon });
 });
 
-// List coupons (debug)
+
 app.get('/coupons', (req, res) => {
   res.json(coupons);
 });
@@ -71,23 +69,23 @@ app.post('/best-coupon', (req, res) => {
   const eligibleResults = [];
 
   for (const c of coupons) {
-    // date check
+   
     if (!isWithinDates(c.startDate, c.endDate)) continue;
 
-    // usage limit per user
+    
     const userUsage = (usageCounts[user.userId] && usageCounts[user.userId][c.code]) || 0;
     if (c.usageLimitPerUser && userUsage >= c.usageLimitPerUser) continue;
 
-    // eligibility checks
+    
     const e = c.eligibility || {};
-    // user-based
+    
     if (e.allowedUserTiers && e.allowedUserTiers.length && (!user.userTier || !e.allowedUserTiers.includes(user.userTier))) continue;
     if (e.minLifetimeSpend && (user.lifetimeSpend || 0) < e.minLifetimeSpend) continue;
     if (e.minOrdersPlaced && (user.ordersPlaced || 0) < e.minOrdersPlaced) continue;
     if (e.firstOrderOnly && (user.ordersPlaced || 0) > 0) continue;
     if (e.allowedCountries && e.allowedCountries.length && (!user.country || !e.allowedCountries.includes(user.country))) continue;
 
-    // cart-based
+    
     if (e.minCartValue && cartValue < e.minCartValue) continue;
     if (e.minItemsCount) {
       const itemCount = cart.items.reduce((s, it) => s + (Number(it.quantity) || 0), 0);
@@ -102,7 +100,7 @@ app.post('/best-coupon', (req, res) => {
       if (hasExcluded) continue;
     }
 
-    // compute discount
+    
     let discount = 0;
     if (c.discountType === 'FLAT') discount = Number(c.discountValue);
     else if (c.discountType === 'PERCENT') {
@@ -120,7 +118,7 @@ app.post('/best-coupon', (req, res) => {
 
   if (eligibleResults.length === 0) return res.json({ bestCoupon: null });
 
-  // Choose best: highest discount, then earliest endDate, then lexicographically smaller code
+
   eligibleResults.sort((a, b) => {
     if (b.discount !== a.discount) return b.discount - a.discount;
     if (!a.endDate.isSame(b.endDate)) return a.endDate.isBefore(b.endDate) ? -1 : 1;
@@ -139,7 +137,7 @@ app.post('/best-coupon', (req, res) => {
   });
 });
 
-// Apply coupon (increment usage)
+
 app.post('/apply-coupon', (req, res) => {
   const { userId, code } = req.body;
   if (!userId || !code) return res.status(400).json({ error: 'userId and code required' });
@@ -153,7 +151,7 @@ app.post('/apply-coupon', (req, res) => {
   res.json({ success: true, usage: usageCounts[userId][code] });
 });
 
-// Seed route to add a sample coupon and user for quick testing
+
 app.post('/seed', (req, res) => {
   coupons.length = 0;
   usageCounts = {};
@@ -171,7 +169,7 @@ app.post('/seed', (req, res) => {
   res.json({ seeded: true, coupons });
 });
 
-// Health check
+
 app.get('/', (req, res) => res.send('Coupon service running'));
 
 const PORT = process.env.PORT || 3000;
